@@ -11,6 +11,8 @@ use Cake\Validation\Validator;
 
 class OrganisationsTable extends AppTable
 {
+    private $__orgCache = [];
+
     /**
      * Initialize method.
      *
@@ -165,5 +167,38 @@ class OrganisationsTable extends AppTable
         )->disableHydration()->first();
 
         return empty($org) ? false : $org;
+    }
+
+    /**
+     * Attach organisations to evnet
+     * @param array $data
+     * @param array $fields
+     * @return array
+     */
+    public function attachOrgs($event, $fields)
+    {
+        $toFetch = [];
+        if (!isset($this->__orgCache[$event['orgc_id']])) {
+            $toFetch[] = $event['orgc_id'];
+        }
+        if (!isset($this->__orgCache[$event['org_id']]) && $event['org_id'] != $event['orgc_id']) {
+            $toFetch[] = $event['org_id'];
+        }
+        if (!empty($toFetch)) {
+            $orgs = $this->find(
+                'all',
+                [
+                    'conditions' => ['id IN' => $toFetch],
+                    'recursive' => -1,
+                    'fields' => $fields,
+                ]
+            );
+            foreach ($orgs as $org) {
+                $this->__orgCache[$org['id']] = $org;
+            }
+        }
+        $event['Orgc'] = $this->__orgCache[$event['orgc_id']];
+        $event['Org'] = $this->__orgCache[$event['org_id']];
+        return $event;
     }
 }
